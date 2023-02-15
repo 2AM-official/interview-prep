@@ -80,7 +80,7 @@ void testMatrixMultiplication() {
     mat2.set(1, 3, 8.0);
 
     // Compute the product of the two matrices
-    Matrix mat3 = mat1.multiply(mat2, 1);
+    Matrix mat3 = mat1.multiply(mat2, 2);
 
     // Test the dimensions of the product matrix
     assert(mat3.getRows() == 3);
