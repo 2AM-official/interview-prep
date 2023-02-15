@@ -3,9 +3,9 @@ CFLAGS = -Wall -Wextra -pedantic -std=c++11
 
 SRC = Matrix.cpp
 OBJ = $(SRC:.cpp=.o)
-TEST_SRC = test.cpp
+TEST_SRC = MatrixTest.cpp
 TEST_OBJ = $(TEST_SRC:.cpp=.o)
-EXE = test
+EXE = MatrixTest
 
 .PHONY: all clean
 
