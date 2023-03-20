@@ -4,34 +4,34 @@ import collections
 import heapq
 
 class pokemon:
-    def __init__(self, api) -> None:
-        self.api = api
+    def __init__(self) -> None:
         self.move_counts = collections.defaultdict(int)
-    
+
     def get_top_moves(self, api):
         for _ in range(5):
             next_link, pokemons_apis = self.pokemons_get(api)
             api = next_link
             for pokemons_api in pokemons_apis:
-                self.move_counts(pokemons_api)
+                self.moves_count(pokemons_api)
         max_heap = []
         for move, count in self.move_counts.items():
-            heapq.heappush((-count, move))
+            #print(move, count)
+            heapq.heappush(max_heap, (count, move))
             if len(max_heap) > 10:
-                heapq.heappop()
+                heapq.heappop(max_heap)
         res = []
         while max_heap:
             count, move = heapq.heappop(max_heap)
-            res.append([-count, move])
-        return res
-    
+            res.append([count, move])
+        return res[::-1]
+
     def pokemons_get(self, api):
         response_API = requests.get(api)
         data = response_API.text
         parse_json = json.loads(data)
-        next_link = parse_json['next_link']
+        next_link = parse_json['next']
         pokemons_apis = []
-        for result in parse_json['result']:
+        for result in parse_json['results']:
             pokemons_apis.append(result['url'])
         return next_link, pokemons_apis
 
@@ -44,5 +44,5 @@ class pokemon:
             self.move_counts[move_name] += 1
 
 
-search = pokemon(https://pokeapi.co/api/v2/pokemon)
-print(search.get_top_moves())
+search = pokemon()
+print(search.get_top_moves('https://pokeapi.co/api/v2/pokemon'))
