@@ -9,7 +9,7 @@ class PokemonCLI:
         self.base_url = 'https://pokeapi.co/api/v2/pokemon/'
 
     def lookup_by_name(self, name: str):
-        """Return the sorted moves from the searching name Pokémon of the Pokémon API."""
+        """Return the sorted moves from the searching name Pokemon of the Pokemon API."""
         # Build the API URL using the Pokemon name
         api = f"{self.base_url}{name.lower()}"
         # Send a request to the API
@@ -25,7 +25,7 @@ class PokemonCLI:
         return sorted(moves)
     
     def lookup_by_number(self, number: int):
-        """Return the sorted moves from the searching number Pokémon of the Pokémon API."""
+        """Return the sorted moves from the searching number Pokemon of the Pokemon API."""
         # Build the API URL using the Pokemon number
         api = f"{self.base_url}{number}"
         # Send a request to the API
@@ -40,8 +40,8 @@ class PokemonCLI:
         moves = [move['move']['name'] for move in data['moves']]
         return sorted(moves)
 
-    def get_top_moves(self, limit: int = 100, letter: str = 's') -> list:
-        """Return the top 10 moves from the first 100 Pokémon of the Pokémon API."""
+    def get_top_moves(self, limit: int = 100, letter: str = 's'):
+        """Return the top 10 moves from the first 100 Pokemon of the Pokemon API."""
         # Initialize a defaultdict to store move counts
         move_counts = collections.defaultdict(int)
         # Iterate through the Pokemon IDs from 1 to limit
@@ -52,9 +52,9 @@ class PokemonCLI:
             for move in moves:
                 if move.startswith(letter.lower()):
                     move_counts[move] += 1
-        # Create a min heap of the top 10 most common moves
-        min_heap = heapq.nsmallest(10, move_counts.items(), key=lambda x: -x[1])
-        return min_heap
+        # Create a heap of the top 10 most common moves
+        heap = heapq.nsmallest(10, move_counts.items(), key=lambda x: -x[1])
+        return heap
 
 
 
@@ -78,6 +78,10 @@ def main():
         if choice == '1':
             # Receive Pokemon name input
             name = input("Enter Pokémon name: ")
+            # Check is the input is a digit, print error is the input is digit
+            if name.isdigit():
+                print("Error: Invalid input. Please enter a Pokémon name.")
+                continue
             # Get the moves for the entered Pokemon name
             moves = cli.lookup_by_name(name)
             if moves:
@@ -108,7 +112,7 @@ def main():
                 print(f"{move}: {count}")
         elif choice == '4':
             # Exit the program and display a goodbye message
-            print("Thanks for using my Pokémon API! Goodbye!")
+            print("Thanks for using my Pokémon CLI! Goodbye!")
             sys.exit()
         else:
             # Display an error message for an invalid choice
