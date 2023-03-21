@@ -1,16 +1,16 @@
-import requests
 import sys
-import collections
 import heapq
+import requests
+import collections
 
 class PokemonCLI:
     def __init__(self):
-        # Set the base URL for the Pokémon API
+        # Set the base URL for the Pokemon API
         self.base_url = 'https://pokeapi.co/api/v2/pokemon/'
 
     def lookup_by_name(self, name: str):
         """Return the sorted moves from the searching name Pokémon of the Pokémon API."""
-        # Build the API URL using the Pokémon name
+        # Build the API URL using the Pokemon name
         api = f"{self.base_url}{name.lower()}"
         # Send a request to the API
         response = requests.get(api)
@@ -20,13 +20,13 @@ class PokemonCLI:
             return []
         # Parse the JSON data
         data = response.json()
-        # Extract and sort the moves for the Pokémon
+        # Extract and sort the moves for the Pokemon
         moves = [move['move']['name'] for move in data['moves']]
         return sorted(moves)
     
     def lookup_by_number(self, number: int):
         """Return the sorted moves from the searching number Pokémon of the Pokémon API."""
-        # Build the API URL using the Pokémon number
+        # Build the API URL using the Pokemon number
         api = f"{self.base_url}{number}"
         # Send a request to the API
         response = requests.get(api)
@@ -36,7 +36,7 @@ class PokemonCLI:
             return []
         # Parse the JSON data
         data = response.json()
-        # Extract and sort the moves for the Pokémon
+        # Extract and sort the moves for the Pokemon
         moves = [move['move']['name'] for move in data['moves']]
         return sorted(moves)
 
@@ -44,9 +44,9 @@ class PokemonCLI:
         """Return the top 10 moves from the first 100 Pokémon of the Pokémon API."""
         # Initialize a defaultdict to store move counts
         move_counts = collections.defaultdict(int)
-        # Iterate through the Pokémon IDs from 1 to limit
+        # Iterate through the Pokemon IDs from 1 to limit
         for i in range(1, limit+1):
-            # Get the moves for the Pokémon by ID
+            # Get the moves for the Pokemon by ID
             moves = self.lookup_by_number(i)
             # Increment the move count for each move that starts with the specified letter
             for move in moves:
@@ -59,7 +59,7 @@ class PokemonCLI:
 
 
 def main():
-    # Instantiate the Pokémon CLI class
+    # Instantiate the Pokemon CLI class
     cli = PokemonCLI()
     
     # Main loop for user interaction
@@ -76,12 +76,12 @@ def main():
 
         # Execute the appropriate action based on the user's choice
         if choice == '1':
-            # Receive Pokémon name input
+            # Receive Pokemon name input
             name = input("Enter Pokémon name: ")
-            # Get the moves for the entered Pokémon name
+            # Get the moves for the entered Pokemon name
             moves = cli.lookup_by_name(name)
             if moves:
-                # Display the moves for the entered Pokémon name
+                # Display the moves for the entered Pokemon name
                 print(f"Moves for {name}:")
                 print(", ".join(moves))
         elif choice == '2':
@@ -90,17 +90,17 @@ def main():
             try:
                 # Convert input to integer
                 num = int(number)
-                # Get the moves for the entered Pokémon number
+                # Get the moves for the entered Pokemon number
                 moves = cli.lookup_by_number(num)
                 if moves:
-                    # Display the moves for the entered Pokémon number
+                    # Display the moves for the entered Pokemon number
                     print(f"Moves for Pokémon #{num}:")
                     print(", ".join(moves))
             except ValueError:
                 # Display an error message for invalid input
                 print("Error: Invalid input. Please enter a valid number.")
         elif choice == '3':
-            # Get the top 10 most common 's' moves for the first 100 Pokémon
+            # Get the top 10 most common 's' moves for the first 100 Pokemon
             top_moves = cli.get_top_moves()
             # Display the top 10 most common 's' moves
             print("\nTop 10 most common 's' moves for the first 100 Pokémon:")
