@@ -1,0 +1,1669 @@
+<h3>Approach</h3>
+<p>Parse each count and domain, split the domain into components, and join every
+suffix while adding the count.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import defaultdict
+
+def aggregate_domain_visits(visits: list[str]) -&gt; dict[str, int]:
+    totals = defaultdict(int)
+    for visit in visits:
+        count_text, domain = visit.replace(&quot;,&quot;, &quot; &quot;, 1).split(maxsplit=1)
+        components = domain.split(&quot;.&quot;)
+        for index in range(len(components)):
+            totals[&quot;.&quot;.join(components[index:])] += int(count_text)
+    return dict(totals)
+</code></pre>
+<h3>Complexity</h3>
+<p>With <code>p</code> total domain components, time is <code>O(p)</code> ignoring string-copy cost and
+space is <code>O(p)</code> for distinct suffixes.</p>
+<h2><code>longest_contiguous_history</code></h2>
+<h3>Question</h3>
+<p>Find the longest contiguous run of pages shared by two browsing histories.</p>
+<h3>Example and clarification</h3>
+<p><code>["a", "b", "c"]</code> and <code>["x", "b", "c"]</code> return <code>["b", "c"]</code>. For equal
+lengths, choose the match starting earliest in the first history.</p>
+<h3>Approach</h3>
+<p>Use longest-common-substring dynamic programming. A matching pair extends the
+diagonal value from the preceding row. Only two rows are needed.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def longest_contiguous_history(first: list[str], second: list[str]) -&gt; list[str]:
+    previous = [0] * (len(second) + 1)
+    best_length = best_start = 0
+
+    for first_index, first_page in enumerate(first, start=1):
+        current = [0] * (len(second) + 1)
+        for second_index, second_page in enumerate(second, start=1):
+            if first_page == second_page:
+                current[second_index] = previous[second_index - 1] + 1
+                length = current[second_index]
+                start = first_index - length
+                if length &gt; best_length or (
+                    length == best_length and start &lt; best_start
+                ):
+                    best_length, best_start = length, start
+        previous = current
+    return first[best_start:best_start + best_length]
+</code></pre>
+<h3>Complexity</h3>
+<p>For history lengths <code>n</code> and <code>m</code>, time is <code>O(nm)</code> and auxiliary space is
+<code>O(m)</code>.</p>
+<h2><code>ad_conversion_rates</code></h2>
+<h3>Question</h3>
+<p>For each ad, count all clicks and the clicks made by users who later bought.</p>
+<h3>Example and clarification</h3>
+<p>Map user IDs to IP addresses first. A click from an unknown IP still increases
+the total, but not the purchasing count. Each click counts separately.</p>
+<h3>Approach</h3>
+<p>Put completed IDs in a set, derive a set of purchaser IPs, then aggregate two
+counters for each ad while scanning clicks.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def ad_conversion_rates(completed_user_ids, ad_clicks, user_ips):
+    purchasers = set(completed_user_ids)
+    purchaser_ips = {
+        ip
+        for user_id, ip in (entry.split(&quot;,&quot;, 1) for entry in user_ips)
+        if user_id in purchasers
+    }
+    counts = {}
+    for click in ad_clicks:
+        ip, _timestamp, ad = click.split(&quot;,&quot;, 2)
+        purchasing, total = counts.setdefault(ad, [0, 0])
+        counts[ad] = [purchasing + (ip in purchaser_ips), total + 1]
+    return {ad: tuple(values) for ad, values in counts.items()}
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>u</code> user-IP records and <code>k</code> clicks, time is <code>O(u + k)</code> and space is
+<code>O(u + a)</code>, where <code>a</code> is the number of ads.</p>
+<h2><code>passable_lanes</code></h2>
+<h3>Question</h3>
+<p>Return every row and column containing only open (<code>"0"</code>) cells.</p>
+<h3>Example and clarification</h3>
+<p>For a one-cell board, <code>[["0"]]</code> returns <code>([0], [0])</code>; <code>[["+"]]</code> returns
+<code>([], [])</code>. Indices must be increasing.</p>
+<h3>Approach</h3>
+<p>Scan each row with <code>all</code>, then scan each column by checking that coordinate in
+every row.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def passable_lanes(board: list[list[str]]) -&gt; tuple[list[int], list[int]]:
+    if not board or not board[0]:
+        return ([], [])
+    rows = [
+        index for index, row in enumerate(board)
+        if all(cell == &quot;0&quot; for cell in row)
+    ]
+    columns = [
+        column
+        for column in range(len(board[0]))
+        if all(board[row][column] == &quot;0&quot; for row in range(len(board)))
+    ]
+    return rows, columns
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>r</code> rows and <code>c</code> columns, time is <code>O(rc)</code> and auxiliary space is
+<code>O(r + c)</code> for the returned indices.</p>
+<h2><code>nearest_exit</code></h2>
+<h3>Question</h3>
+<p>From a starting open cell, find the closest reachable open cell on a different
+boundary side.</p>
+<h3>Example and clarification</h3>
+<p>Move only up, down, left, or right. The side containing the entrance is not an
+exit side; a corner entrance excludes both of its sides. If two exits have the
+same distance, choose the lower row, then lower column.</p>
+<h3>Approach</h3>
+<p>Record the entrance's boundary sides. Breadth-first search visits cells by
+shortest distance. Gather valid exits at the first exit distance, then choose
+the smallest coordinate.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import deque
+
+def nearest_exit(grid, start_row, start_column):
+    if not grid or not grid[0] or grid[start_row][start_column] != &quot;0&quot;:
+        return [-1, -1]
+    rows, columns = len(grid), len(grid[0])
+    entrance_sides = set()
+    if start_row == 0:
+        entrance_sides.add(&quot;top&quot;)
+    if start_row == rows - 1:
+        entrance_sides.add(&quot;bottom&quot;)
+    if start_column == 0:
+        entrance_sides.add(&quot;left&quot;)
+    if start_column == columns - 1:
+        entrance_sides.add(&quot;right&quot;)
+
+    def is_exit(row, column):
+        return (
+            (row == 0 and &quot;top&quot; not in entrance_sides)
+            or (row == rows - 1 and &quot;bottom&quot; not in entrance_sides)
+            or (column == 0 and &quot;left&quot; not in entrance_sides)
+            or (column == columns - 1 and &quot;right&quot; not in entrance_sides)
+        )
+
+    queue = deque([(start_row, start_column, 0)])
+    visited = {(start_row, start_column)}
+    best_distance, exits = None, []
+
+    while queue:
+        row, column, distance = queue.popleft()
+        if best_distance is not None and distance &gt; best_distance:
+            break
+        if is_exit(row, column):
+            best_distance = distance
+            exits.append((row, column))
+            continue
+        for row_delta, column_delta in ((-1, 0), (0, -1), (0, 1), (1, 0)):
+            next_cell = (row + row_delta, column + column_delta)
+            next_row, next_column = next_cell
+            if (
+                0 &lt;= next_row &lt; rows
+                and 0 &lt;= next_column &lt; columns
+                and next_cell not in visited
+                and grid[next_row][next_column] == &quot;0&quot;
+            ):
+                visited.add(next_cell)
+                queue.append((next_row, next_column, distance + 1))
+    return list(min(exits)) if exits else [-1, -1]
+</code></pre>
+<h3>Complexity</h3>
+<p>Time and space are both <code>O(rc)</code> because each cell enters the queue at most
+once.</p>
+<h2><code>nest_entrance_counts</code></h2>
+<h3>Question</h3>
+<p>For each connected region of open cells, count how many of its cells touch the
+board boundary.</p>
+<h3>Example and clarification</h3>
+<p>An enclosed open region has count zero and must still be returned. A fully
+open 2-by-2 board is one region with four boundary cells, so it returns <code>[4]</code>.</p>
+<h3>Approach</h3>
+<p>Start a DFS whenever an unvisited open cell is found. Count cells on the
+boundary during that component traversal, then sort all component counts.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def nest_entrance_counts(board: list[list[str]]) -&gt; list[int]:
+    if not board or not board[0]:
+        return []
+    rows, columns = len(board), len(board[0])
+    visited, counts = set(), []
+
+    for start_row in range(rows):
+        for start_column in range(columns):
+            start = (start_row, start_column)
+            if board[start_row][start_column] != &quot;0&quot; or start in visited:
+                continue
+            entrances, stack = 0, [start]
+            visited.add(start)
+            while stack:
+                row, column = stack.pop()
+                if row in (0, rows - 1) or column in (0, columns - 1):
+                    entrances += 1
+                for row_delta, column_delta in ((-1, 0), (0, -1), (0, 1), (1, 0)):
+                    next_cell = (row + row_delta, column + column_delta)
+                    next_row, next_column = next_cell
+                    if (
+                        0 &lt;= next_row &lt; rows
+                        and 0 &lt;= next_column &lt; columns
+                        and next_cell not in visited
+                        and board[next_row][next_column] == &quot;0&quot;
+                    ):
+                        visited.add(next_cell)
+                        stack.append(next_cell)
+            counts.append(entrances)
+    return sorted(counts)
+</code></pre>
+<h3>Complexity</h3>
+<p>Traversal takes <code>O(rc)</code> time and <code>O(rc)</code> space. Sorting <code>q</code> component counts
+adds <code>O(q log q)</code> time.</p>
+<h2><code>find_story_ending</code></h2>
+<h3>Question</h3>
+<p>Starting at page 1, repeatedly choose one fixed option at every choice page.
+Return the ending reached.</p>
+<h3>Example and clarification</h3>
+<p>Ordinary pages advance to the next number. If following the selected option
+revisits a page, return <code>-1</code> because the story loops.</p>
+<h3>Approach</h3>
+<p>Map choice pages to their two targets. Simulate reading while storing visited
+pages, stopping at either an ending or a repeated page.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def find_story_ending(endings, choices, option):
+    terminal = set(endings)
+    choice_by_page = {
+        page: (option_one, option_two)
+        for page, option_one, option_two in choices
+    }
+    visited, page = set(), 1
+    while page not in terminal:
+        if page in visited:
+            return -1
+        visited.add(page)
+        page = choice_by_page.get(page, (page + 1, page + 1))[option - 1]
+    return page
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>n</code> represented pages, time and space are <code>O(n)</code>.</p>
+<h2><code>find_good_story_endings</code></h2>
+<h3>Question</h3>
+<p>Find every good ending reachable from page 1 when both options may be taken.</p>
+<h3>Example and clarification</h3>
+<p>Good and bad endings are terminal. A branch entering a loop must not prevent
+other branches from reaching good endings. Return sorted unique page numbers.</p>
+<h3>Approach</h3>
+<p>Treat pages as graph nodes. DFS from page 1, expanding a choice into two
+targets and an ordinary page into <code>page + 1</code>. A visited set handles cycles.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def find_good_story_endings(good_endings, bad_endings, choices):
+    good = set(good_endings)
+    terminal = good | set(bad_endings)
+    choice_by_page = {
+        page: (option_one, option_two)
+        for page, option_one, option_two in choices
+    }
+    all_targets = {
+        target for targets in choice_by_page.values() for target in targets
+    }
+    highest_known = max(terminal | set(choice_by_page) | all_targets, default=1)
+    reachable_good, visited, stack = set(), set(), [1]
+
+    while stack:
+        page = stack.pop()
+        if page in visited:
+            continue
+        visited.add(page)
+        if page in good:
+            reachable_good.add(page)
+        elif page in terminal or page &gt; highest_known:
+            continue
+        elif page in choice_by_page:
+            stack.extend(choice_by_page[page])
+        else:
+            stack.append(page + 1)
+    return sorted(reachable_good)
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>n</code> relevant pages and choice edges, time and space are <code>O(n)</code>.</p>
+<h2><code>shopping_savings</code></h2>
+<h3>Question</h3>
+<p>How many department visits are saved by regrouping a shopping list by
+department?</p>
+<h3>Example and clarification</h3>
+<p>The original visit count is the number of contiguous department runs. The
+grouped count is the number of distinct departments. An empty list saves zero.</p>
+<h3>Approach</h3>
+<p>Map products to departments, count transitions in shopping-list order, and
+subtract the number of unique departments.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def shopping_savings(products, shopping_list):
+    if not shopping_list:
+        return 0
+    department_by_product = {
+        product: department for product, department in products
+    }
+    departments = [
+        department_by_product[product] for product in shopping_list
+    ]
+    original_visits = 1 + sum(
+        current != previous
+        for previous, current in zip(departments, departments[1:])
+    )
+    return original_visits - len(set(departments))
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>p</code> products and <code>n</code> shopping-list items, time is <code>O(p + n)</code> and space is
+<code>O(p + n)</code>.</p>
+<h2><code>carpool</code></h2>
+<h3>Question</h3>
+<p>Two cars follow fixed road chains. Assign each person to the car that reaches
+their location first.</p>
+<h3>Example and clarification</h3>
+<p>Cars leave together. Road times are strings but represent minutes. Preserve
+car order and person order; omit unreachable people. Either car is valid for
+a tie, and this solution consistently picks the earlier car.</p>
+<h3>Approach</h3>
+<p>For each car, walk its route once and record cumulative arrival times. For
+each person, compare the available arrival times and append the name to the
+best car's list.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def carpool(roads, starts, people):
+    next_road = {
+        origin: (destination, int(minutes))
+        for origin, destination, minutes in roads
+    }
+    arrival_times = []
+    for start in starts:
+        times, location, elapsed, visited = {start: 0}, start, 0, {start}
+        while location in next_road:
+            destination, minutes = next_road[location]
+            if destination in visited:
+                break
+            elapsed += minutes
+            times[destination] = elapsed
+            visited.add(destination)
+            location = destination
+        arrival_times.append(times)
+
+    assignments = [[] for _ in starts]
+    for person, location in people:
+        candidates = [
+            (times[location], car_index)
+            for car_index, times in enumerate(arrival_times)
+            if location in times
+        ]
+        if candidates:
+            _arrival, car_index = min(candidates)
+            assignments[car_index].append(person)
+    return assignments
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>r</code> reachable road steps across cars, <code>p</code> people, and <code>k</code> cars, time is
+<code>O(r + pk)</code> and space is <code>O(r + p)</code>.</p>
+<hr />
+<h1>Words, Grids, Games, and Formatting</h1>
+<h2><code>find_scrambled_word</code></h2>
+<h3>Question</h3>
+<p>Given candidate words and a bag of letters, return the candidate that can be
+built without using any letter more times than it appears. Return <code>None</code> if no
+candidate works.</p>
+<h3>Example and clarification</h3>
+<p><code>["cat", "baby"], "tcabnihjs"</code> returns <code>"cat"</code>. Letter order and adjacency do
+not matter. The prompt guarantees at most one answer.</p>
+<h3>Approach</h3>
+<p>Count the available letters once. For each word, count its letters and check
+whether any required count exceeds the available count.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import Counter
+
+def find_scrambled_word(words: list[str], letters: str) -&gt; str | None:
+    available = Counter(letters)
+    for word in words:
+        if not (Counter(word) - available):
+            return word
+    return None
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(L + C)</code>, where <code>L</code> is the number of supplied letters and <code>C</code> is the
+total number of characters in all words. Space: <code>O(A)</code>, where <code>A</code> is the number
+of distinct characters.</p>
+<h2><code>find_word_location</code></h2>
+<h3>Question</h3>
+<p>Find a path that spells a word in a character grid. A path may begin anywhere
+and move only right or down.</p>
+<h3>Example and clarification</h3>
+<p>In <code>[['c', 'a'], ['x', 't']]</code>, <code>"cat"</code> uses
+<code>[(0, 0), (0, 1), (1, 1)]</code>. Return coordinates in letter order, or <code>None</code>.</p>
+<h3>Approach</h3>
+<p>Try every cell as a start. Depth-first search first to the right and then down,
+backtracking when a letter does not match.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def find_word_location(grid, word):
+    if not word:
+        return []
+
+    def dfs(row, column, index, path):
+        if (row &gt;= len(grid) or column &gt;= len(grid[row])
+                or grid[row][column] != word[index]):
+            return None
+        path.append((row, column))
+        if index == len(word) - 1:
+            return path.copy()
+        for next_cell in ((row, column + 1), (row + 1, column)):
+            result = dfs(*next_cell, index + 1, path)
+            if result is not None:
+                return result
+        path.pop()
+        return None
+
+    for row, cells in enumerate(grid):
+        for column in range(len(cells)):
+            result = dfs(row, column, 0, [])
+            if result is not None:
+                return result
+    return None
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(R * C * 2^W)</code> in the worst case for an <code>R</code> by <code>C</code> grid and a
+<code>W</code>-letter word. Space: <code>O(W)</code> for recursion and the path.</p>
+<h2><code>find_word_locations</code></h2>
+<h3>Question</h3>
+<p>Find right/down paths for several words while ensuring that no grid cell is
+used by two words.</p>
+<h3>Example and clarification</h3>
+<p>For <code>["by", "bat"]</code>, a locally valid path for <code>"by"</code> may block every path for
+<code>"bat"</code>. Choices therefore need global backtracking. Return paths in input
+order, or <code>None</code>.</p>
+<h3>Approach</h3>
+<p>For the current word, enumerate every path that avoids occupied cells. Reserve
+one path, recurse on the next word, and undo the choice if the remaining words
+cannot be assigned.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def find_word_locations(grid, words):
+    def paths(word, used):
+        if not word:
+            return [[]]
+        found = []
+
+        def dfs(row, column, index, path):
+            cell = (row, column)
+            if (row &gt;= len(grid) or column &gt;= len(grid[row])
+                    or cell in used or grid[row][column] != word[index]):
+                return
+            path.append(cell)
+            if index == len(word) - 1:
+                found.append(path.copy())
+            else:
+                dfs(row, column + 1, index + 1, path)
+                dfs(row + 1, column, index + 1, path)
+            path.pop()
+
+        for row, cells in enumerate(grid):
+            for column in range(len(cells)):
+                dfs(row, column, 0, [])
+        return found
+
+    answer = []
+
+    def assign(index, used):
+        if index == len(words):
+            return True
+        for path in paths(words[index], used):
+            answer.append(path)
+            if assign(index + 1, used | set(path)):
+                return True
+            answer.pop()
+        return False
+
+    return answer if assign(0, set()) else None
+</code></pre>
+<h3>Complexity</h3>
+<p>Time is exponential in the number and lengths of the words because all
+compatible path combinations may be explored. Space is the total path length
+plus recursion and generated candidate paths.</p>
+<h2><code>is_complete_hand</code></h2>
+<h3>Question</h3>
+<p>Determine whether all digit tiles can be divided into zero or more triples and
+exactly one pair.</p>
+<h3>Example and clarification</h3>
+<p><code>"55555"</code> is valid: one triple and one pair of fives. <code>"888"</code> is invalid
+because it has no pair.</p>
+<h3>Approach</h3>
+<p>For each digit count, divide by three. Exactly one digit must leave remainder
+two; every other digit must leave remainder zero.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import Counter
+
+def is_complete_hand(tiles: str) -&gt; bool:
+    if any(tile not in &quot;0123456789&quot; for tile in tiles):
+        return False
+    pair_found = False
+    for count in Counter(tiles).values():
+        remainder = count % 3
+        if remainder == 2:
+            if pair_found:
+                return False
+            pair_found = True
+        elif remainder != 0:
+            return False
+    return pair_found
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(n)</code>. Space: <code>O(1)</code> because there are only ten possible digits.</p>
+<h2><code>is_advanced_complete_hand</code></h2>
+<h3>Question</h3>
+<p>Use every tile as exactly one pair plus groups that are either three equal
+digits or three consecutive digits.</p>
+<h3>Example and clarification</h3>
+<p><code>"11123"</code> is valid as pair <code>11</code> plus run <code>123</code>. Runs do not wrap, so <code>890</code> is
+not a run.</p>
+<h3>Approach</h3>
+<p>Try every possible pair. For the remaining counts, take the lowest available
+digit and recursively try a triple or a run starting there. Memoize count
+states.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from functools import lru_cache
+
+def is_advanced_complete_hand(tiles: str) -&gt; bool:
+    if len(tiles) % 3 != 2 or any(c not in &quot;0123456789&quot; for c in tiles):
+        return False
+    counts = [0] * 10
+    for tile in tiles:
+        counts[int(tile)] += 1
+
+    @lru_cache(None)
+    def groups(state):
+        first = next((i for i, count in enumerate(state) if count), None)
+        if first is None:
+            return True
+        remaining = list(state)
+        if remaining[first] &gt;= 3:
+            remaining[first] -= 3
+            if groups(tuple(remaining)):
+                return True
+            remaining[first] += 3
+        if first &lt;= 7 and remaining[first + 1] and remaining[first + 2]:
+            remaining[first] -= 1
+            remaining[first + 1] -= 1
+            remaining[first + 2] -= 1
+            if groups(tuple(remaining)):
+                return True
+        return False
+
+    for pair in range(10):
+        if counts[pair] &gt;= 2:
+            counts[pair] -= 2
+            if groups(tuple(counts)):
+                return True
+            counts[pair] += 2
+    return False
+</code></pre>
+<h3>Complexity</h3>
+<p>There are at most <code>product(count[d] + 1)</code> memoized count states, each doing
+constant work; this is exponential in the number of tiles in the general
+bound. Space is the same number of states plus <code>O(n)</code> recursion depth.</p>
+<h2><code>is_valid_matrix</code></h2>
+<h3>Question</h3>
+<p>Check that an <code>N x N</code> matrix has every value from <code>1</code> through <code>N</code> exactly once
+in each row and each column.</p>
+<h3>Example and clarification</h3>
+<p><code>[[1, 2], [2, 1]]</code> is valid. Reject empty, non-square, duplicate, missing, and
+out-of-range data.</p>
+<h3>Approach</h3>
+<p>Build the expected set once. Compare every row and every constructed column to
+that set.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def is_valid_matrix(matrix: list[list[int]]) -&gt; bool:
+    if not matrix:
+        return False
+    size = len(matrix)
+    expected = set(range(1, size + 1))
+    if any(len(row) != size or set(row) != expected for row in matrix):
+        return False
+    return all(
+        {matrix[row][column] for row in range(size)} == expected
+        for column in range(size)
+    )
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(n^2)</code>. Space: <code>O(n)</code> for the sets.</p>
+<h2><code>validate_nonogram</code></h2>
+<h3>Question</h3>
+<p>Validate that each row and column has the exact ordered lengths of contiguous
+black-cell runs described by its instructions. Black cells are zero.</p>
+<h3>Example and clarification</h3>
+<p><code>[0, 0, 1, 0]</code> produces instructions <code>[2, 1]</code>. A line with no zeros produces
+<code>[]</code>.</p>
+<h3>Approach</h3>
+<p>Scan a line and record a run whenever zeros end. Compare all rows, then build
+and compare all columns. Also reject mismatched dimensions.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def validate_nonogram(matrix, row_instructions, column_instructions):
+    height = len(matrix)
+    width = len(matrix[0]) if matrix else 0
+    if (len(row_instructions) != height
+            or len(column_instructions) != width
+            or any(len(row) != width for row in matrix)):
+        return False
+
+    def runs(line):
+        answer, length = [], 0
+        for cell in line:
+            if cell == 0:
+                length += 1
+            elif length:
+                answer.append(length)
+                length = 0
+        if length:
+            answer.append(length)
+        return answer
+
+    if any(runs(row) != clue for row, clue in zip(matrix, row_instructions)):
+        return False
+    return all(
+        runs([matrix[row][column] for row in range(height)]) == clue
+        for column, clue in enumerate(column_instructions)
+    )
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(R * C)</code>. Space: <code>O(max(R, C))</code> for a line and its runs.</p>
+<h2><code>teleporter_destinations</code></h2>
+<h3>Question</h3>
+<p>List the unique squares reachable after one die roll, applying at most one
+teleporter and preserving die-roll order.</p>
+<h3>Example and clarification</h3>
+<p>With teleporters <code>["3,1", "4,2", "5,10"]</code>, a six-sided die, start <code>0</code>, and
+finish <code>20</code>, the result is <code>[1, 2, 10, 6]</code>. Any roll reaching or passing the
+finish stops at the finish.</p>
+<h3>Approach</h3>
+<p>Parse teleporters into a source-to-destination map. Simulate every roll, clamp
+to the finish, apply one lookup, and append destinations not seen before.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def teleporter_destinations(teleporters, die_sides, start, last_square):
+    links = {}
+    for item in teleporters:
+        source, destination = map(int, item.split(&quot;,&quot;))
+        links[source] = destination
+    answer, seen = [], set()
+    for roll in range(1, die_sides + 1):
+        landed = min(start + roll, last_square)
+        if landed &lt; last_square:
+            landed = min(links.get(landed, landed), last_square)
+        if landed not in seen:
+            seen.add(landed)
+            answer.append(landed)
+    return answer
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(T + D)</code> for <code>T</code> teleporters and <code>D</code> die sides. Space: <code>O(T + D)</code>.</p>
+<h2><code>is_finishable</code></h2>
+<h3>Question</h3>
+<p>Determine whether some sequence of rolls can reach the final square when one
+teleporter may be followed after each roll.</p>
+<h3>Example and clarification</h3>
+<p>Backward teleporters can create a barrier. This is reachability, not a request
+for the minimum number of rolls.</p>
+<h3>Approach</h3>
+<p>Treat board squares as graph nodes. Breadth-first search all one-roll
+destinations and use a visited set so cycles terminate.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import deque
+
+def is_finishable(teleporters, die_sides, start, last_square):
+    if start &gt;= last_square:
+        return True
+    if die_sides &lt;= 0:
+        return False
+    links = {}
+    for item in teleporters:
+        source, destination = map(int, item.split(&quot;,&quot;))
+        links[source] = destination
+    queue, visited = deque([start]), {start}
+    while queue:
+        square = queue.popleft()
+        for roll in range(1, die_sides + 1):
+            landed = min(square + roll, last_square)
+            if landed &lt; last_square:
+                landed = min(links.get(landed, landed), last_square)
+            if landed &gt;= last_square:
+                return True
+            if landed not in visited:
+                visited.add(landed)
+                queue.append(landed)
+    return False
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(B * D + T)</code> for <code>B</code> reachable board states, <code>D</code> die sides, and <code>T</code>
+teleporters. Space: <code>O(B + T)</code>.</p>
+<h2><code>wrap_lines</code></h2>
+<h3>Question</h3>
+<p>Greedily place as many words as possible on each line without exceeding a
+maximum width, rendering spaces as hyphens.</p>
+<h3>Example and clarification</h3>
+<p><code>["The", "day", "began"]</code> at width <code>7</code> becomes <code>["The-day", "began"]</code>.
+Individual words are guaranteed to fit.</p>
+<h3>Approach</h3>
+<p>Track the current words and visible width. Before adding each word, account for
+one separator; flush the current line if the new word would overflow.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def wrap_lines(words: list[str], max_width: int) -&gt; list[str]:
+    answer, current, width = [], [], 0
+    for word in words:
+        added = len(word) + (1 if current else 0)
+        if current and width + added &gt; max_width:
+            answer.append(&quot;-&quot;.join(current))
+            current, width = [word], len(word)
+        else:
+            current.append(word)
+            width += added
+    if current:
+        answer.append(&quot;-&quot;.join(current))
+    return answer
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(C)</code> and space: <code>O(C)</code>, where <code>C</code> is the total number of characters in
+the output.</p>
+<h2><code>reflow_and_justify</code></h2>
+<h3>Question</h3>
+<p>Reflow words to a maximum width and fully justify every multiword line with
+hyphens. Earlier gaps receive extra hyphens first.</p>
+<h3>Example and clarification</h3>
+<p>For three words requiring eight total hyphens, two gaps receive four hyphens
+each. Single-word lines are not padded.</p>
+<h3>Approach</h3>
+<p>Split all input lines into words and greedily wrap them. For each multiword
+line, subtract letter count from the target width, divide the hyphens evenly
+across gaps, and give one extra to each earliest remainder gap.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def reflow_and_justify(lines: list[str], max_width: int) -&gt; list[str]:
+    words = [word for line in lines for word in line.split()]
+    wrapped = wrap_lines(words, max_width)
+    answer = []
+    for line in wrapped:
+        line_words = line.split(&quot;-&quot;)
+        if len(line_words) == 1:
+            answer.append(line)
+            continue
+        hyphens = max_width - sum(map(len, line_words))
+        gaps = len(line_words) - 1
+        base, extra = divmod(hyphens, gaps)
+        pieces = [line_words[0]]
+        for index, word in enumerate(line_words[1:]):
+            pieces += [&quot;-&quot; * (base + (index &lt; extra)), word]
+        answer.append(&quot;&quot;.join(pieces))
+    return answer
+</code></pre>
+<h3>Complexity</h3>
+<p>Time: <code>O(C)</code> and space: <code>O(C)</code>, where <code>C</code> is the total input/output character
+count.</p>
+<hr />
+<h1>Group and Systems Reference Guide</h1>
+<p>Each answer is intentionally short enough to review on a phone. The code matches
+the reference modules in <code>Karat/solutions</code>.</p>
+<h2>Cipher</h2>
+<h3><code>transpose_cipher</code></h3>
+<p><strong>Question</strong></p>
+<p>Fill a <code>rows × columns</code> matrix from left to right, top to bottom, then read it
+top to bottom, left to right.</p>
+<p><strong>Example / clarification</strong></p>
+<p>For <code>"abcdef"</code>, 2 rows, and 3 columns, the rows are <code>abc</code> and <code>def</code>; reading
+columns produces <code>"adbecf"</code>. Spaces and punctuation are ordinary characters.</p>
+<p><strong>Approach</strong></p>
+<p>For each column, visit every row. A row-major cell is at
+<code>row * columns + column</code>.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">def transpose_cipher(message: str, rows: int, columns: int) -&gt; str:
+    return &quot;&quot;.join(
+        message[row * columns + column]
+        for column in range(columns)
+        for row in range(rows)
+    )
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Time is <code>O(rows × columns)</code>. Output space is <code>O(rows × columns)</code>.</p>
+<h3><code>encrypt_with_key</code></h3>
+<p><strong>Question</strong></p>
+<p>Build a substitution alphabet from the first case-insensitive occurrence of
+each letter in the key, then encrypt a message.</p>
+<p><strong>Example / clarification</strong></p>
+<p>If the deduplicated key starts <code>THE...</code>, then <code>A → T</code>, <code>B → H</code>, and <code>C → E</code>.
+Preserve message case and leave non-ASCII letters, spaces, and punctuation
+unchanged.</p>
+<p><strong>Approach</strong></p>
+<p>Deduplicate the key into 26 uppercase letters. Zip those letters against
+<code>A-Z</code>, then substitute each message character.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">from string import ascii_uppercase
+
+
+def encrypt_with_key(message: str, key: str) -&gt; str:
+    keyed_alphabet = []
+    seen = set()
+    for character in key:
+        upper = character.upper()
+        if upper in ascii_uppercase and upper not in seen:
+            seen.add(upper)
+            keyed_alphabet.append(upper)
+
+    substitution = dict(zip(ascii_uppercase, keyed_alphabet))
+    encrypted = []
+    for character in message:
+        replacement = substitution.get(character.upper())
+        if replacement is None:
+            encrypted.append(character)
+        elif character.islower():
+            encrypted.append(replacement.lower())
+        else:
+            encrypted.append(replacement)
+    return &quot;&quot;.join(encrypted)
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>For key length <code>K</code> and message length <code>M</code>, time is <code>O(K + M)</code> and extra space
+is <code>O(M)</code> including the output.</p>
+<h3><code>possible_decryptions</code></h3>
+<p><strong>Question</strong></p>
+<p>Return dictionary words that can map bijectively to a ciphertext split into
+numbers <code>1..26</code>.</p>
+<p><strong>Example / clarification</strong></p>
+<p><code>"122"</code> can represent a three-letter pattern such as <code>1,2,2</code>, so <code>"COO"</code>
+matches. <code>"CAT"</code> does not because its last two different letters would both
+map to <code>2</code>. Tokens cannot start with zero.</p>
+<p><strong>Approach</strong></p>
+<p>Try each dictionary word. Backtrack over one- and two-digit tokens while
+maintaining both a letter-to-number map and a set of numbers already assigned
+to other letters.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">def possible_decryptions(dictionary: list[str], ciphertext: str) -&gt; list[str]:
+    def matches(word: str) -&gt; bool:
+        word = word.upper()
+
+        def search(letter_i, digit_i, assignments, used):
+            if letter_i == len(word):
+                return digit_i == len(ciphertext)
+            if digit_i &gt;= len(ciphertext) or ciphertext[digit_i] == &quot;0&quot;:
+                return False
+
+            letter = word[letter_i]
+            for width in (1, 2):
+                end = digit_i + width
+                if end &gt; len(ciphertext):
+                    continue
+                number = int(ciphertext[digit_i:end])
+                if not 1 &lt;= number &lt;= 26:
+                    continue
+                assigned = assignments.get(letter)
+                if assigned is not None and assigned != number:
+                    continue
+                if assigned is None and number in used:
+                    continue
+
+                if assigned is None:
+                    assignments[letter] = number
+                    used.add(number)
+                if search(letter_i + 1, end, assignments, used):
+                    return True
+                if assigned is None:
+                    del assignments[letter]
+                    used.remove(number)
+            return False
+
+        return search(0, 0, {}, set())
+
+    answer = []
+    seen_words = set()
+    for word in dictionary:
+        if word not in seen_words and matches(word):
+            seen_words.add(word)
+            answer.append(word)
+    return answer
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>For <code>D</code> words of maximum length <code>L</code>, worst-case time is <code>O(D × 2^L)</code> because
+each letter may consume one or two digits. Backtracking space is <code>O(L)</code>.</p>
+<h2>Delivery Bot</h2>
+<h3><code>delivery_destinations</code></h3>
+<p><strong>Question</strong></p>
+<p>For every origin in a directed acyclic graph, list every reachable terminal
+destination.</p>
+<p><strong>Example / clarification</strong></p>
+<p>With <code>A → B</code>, <code>A → C</code>, <code>B → D</code>, and <code>C → D</code>, only <code>A</code> is an origin and <code>D</code> is
+its only terminal. Duplicate paths do not duplicate results.</p>
+<p><strong>Approach</strong></p>
+<p>Origins have no incoming edge. Use memoized DFS to compute the set of terminal
+nodes reachable from each node.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def delivery_destinations(paths: list[list[str]]) -&gt; dict[str, list[str]]:
+    graph = defaultdict(set)
+    nodes = set()
+    has_incoming = set()
+    for origin, destination in paths:
+        graph[origin].add(destination)
+        nodes.update((origin, destination))
+        has_incoming.add(destination)
+
+    cache = {}
+
+    def terminals(node):
+        if node in cache:
+            return cache[node]
+        if not graph[node]:
+            cache[node] = {node}
+        else:
+            cache[node] = set()
+            for neighbor in graph[node]:
+                cache[node].update(terminals(neighbor))
+        return cache[node]
+
+    origins = sorted(nodes - has_incoming)
+    return {origin: sorted(terminals(origin)) for origin in origins}
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Let <code>T</code> be the number of terminals. Set propagation takes
+<code>O((V + E) × T)</code> time and <code>O(V × T + E)</code> space in the worst case.</p>
+<h3><code>buildable_robots</code></h3>
+<p><strong>Question</strong></p>
+<p>Return robots for which every required part is available.</p>
+<p><strong>Example / clarification</strong></p>
+<p>Available parts are reusable. If <code>"courier"</code> needs <code>wheel</code> and <code>motor</code>, one of
+each in the available set is enough, regardless of other robots.</p>
+<p><strong>Approach</strong></p>
+<p>Put available parts in a set and use a subset check for each robot.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">def buildable_robots(
+    all_parts: list[str], required_parts: list[list[object]]
+) -&gt; list[str]:
+    available = set(all_parts)
+    answer = []
+    for robot_name, parts in required_parts:
+        if set(parts).issubset(available):
+            answer.append(str(robot_name))
+    return answer
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Time is <code>O(P + R)</code>, where <code>P</code> is the available-part count and <code>R</code> is the total
+number of required-part entries. Extra space is <code>O(P)</code>.</p>
+<h2>Generation Graph</h2>
+<h3><code>find_nodes_with_zero_or_one_parent</code></h3>
+<p><strong>Question</strong></p>
+<p>Find all nodes with zero distinct parents and all nodes with exactly one.</p>
+<p><strong>Example / clarification</strong></p>
+<p>For <code>(1,3), (2,3), (4,2)</code>, nodes <code>1</code> and <code>4</code> have zero parents, while <code>2</code> has
+one. Duplicate edges count once.</p>
+<p><strong>Approach</strong></p>
+<p>Collect every node and a set of parents for each child, then filter and sort.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def find_nodes_with_zero_or_one_parent(parent_child_pairs):
+    parents = defaultdict(set)
+    nodes = set()
+    for parent, child in parent_child_pairs:
+        nodes.update((parent, child))
+        parents[child].add(parent)
+    zero = sorted(node for node in nodes if not parents[node])
+    one = sorted(node for node in nodes if len(parents[node]) == 1)
+    return zero, one
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Building sets is <code>O(E)</code> average time. Sorting makes total time
+<code>O(E + V log V)</code>; space is <code>O(V + E)</code>.</p>
+<h3><code>has_common_ancestor</code></h3>
+<p><strong>Question</strong></p>
+<p>Determine whether two nodes share any direct or transitive ancestor.</p>
+<p><strong>Example / clarification</strong></p>
+<p>If <code>1 → 3 → 6</code> and <code>1 → 4</code>, then <code>6</code> and <code>4</code> share ancestor <code>1</code>. A node does
+not count as its own ancestor.</p>
+<p><strong>Approach</strong></p>
+<p>Traverse parent edges from each person, build two ancestor sets, and test their
+intersection.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def has_common_ancestor(parent_child_pairs, first, second):
+    parents = defaultdict(set)
+    for parent, child in set(parent_child_pairs):
+        parents[child].add(parent)
+
+    def all_ancestors(person):
+        ancestors = set()
+        pending = list(parents[person])
+        while pending:
+            ancestor = pending.pop()
+            if ancestor in ancestors:
+                continue
+            ancestors.add(ancestor)
+            pending.extend(parents[ancestor])
+        ancestors.discard(person)
+        return ancestors
+
+    return bool(all_ancestors(first) &amp; all_ancestors(second))
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Time and space are both <code>O(V + E)</code>.</p>
+<h3><code>find_earliest_ancestor</code></h3>
+<p><strong>Question</strong></p>
+<p>Find an ancestor at the greatest parent-edge distance, breaking distance ties
+with the smaller numeric node.</p>
+<p><strong>Example / clarification</strong></p>
+<p>For <code>1 → 3 → 6</code> and <code>2 → 6</code>, person <code>6</code> returns <code>1</code>, which is two edges away.
+A person with no parent returns <code>None</code>.</p>
+<p><strong>Approach</strong></p>
+<p>Walk upward while recording the greatest distance found for each ancestor.
+After traversal, select the smallest ancestor at the maximum distance.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">from collections import defaultdict, deque
+
+
+def find_earliest_ancestor(parent_child_pairs, person):
+    parents = defaultdict(set)
+    for parent, child in set(parent_child_pairs):
+        parents[child].add(parent)
+    if not parents[person]:
+        return None
+
+    greatest_distance = {}
+    pending = deque((parent, 1) for parent in parents[person])
+    while pending:
+        ancestor, distance = pending.popleft()
+        if distance &lt;= greatest_distance.get(ancestor, 0):
+            continue
+        greatest_distance[ancestor] = distance
+        pending.extend(
+            (parent, distance + 1) for parent in parents[ancestor]
+        )
+
+    maximum = max(greatest_distance.values())
+    return min(
+        ancestor
+        for ancestor, distance in greatest_distance.items()
+        if distance == maximum
+    )
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>On a DAG, distance relaxations take at most <code>O(V × E)</code> time in the worst case.
+The graph, queue, and distance map use <code>O(V + E)</code> space.</p>
+<h2>Movie Recommendation</h2>
+<h3><code>group_users_by_follow_count</code></h3>
+<p><strong>Question</strong></p>
+<p>Apply connect/disconnect events, then split all users below a follow threshold
+from users at or above it.</p>
+<p><strong>Example / clarification</strong></p>
+<p>Connections are outgoing from the first user to the second. Reconnecting the
+same pair or disconnecting a missing pair changes nothing. Users who only
+appear as targets still belong in the output.</p>
+<p><strong>Approach</strong></p>
+<p>Maintain each user's outgoing neighbors as a set. Sets make both event types
+idempotent.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def group_users_by_follow_count(events, threshold):
+    follows = defaultdict(set)
+    users = set()
+    for follower, followed, operation in events:
+        users.update((follower, followed))
+        if operation == &quot;CONNECT&quot;:
+            follows[follower].add(followed)
+        elif operation == &quot;DISCONNECT&quot;:
+            follows[follower].discard(followed)
+        else:
+            raise ValueError(f&quot;unknown operation: {operation}&quot;)
+    below = sorted(user for user in users if len(follows[user]) &lt; threshold)
+    above = sorted(user for user in users if len(follows[user]) &gt;= threshold)
+    return below, above
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>For <code>E</code> events and <code>U</code> users, time is <code>O(E + U log U)</code> and space is
+<code>O(U + E)</code>.</p>
+<h3><code>recommend_movies</code></h3>
+<p><strong>Question</strong></p>
+<p>Recommend unseen movies watched by users who share a movie rated above 3 with
+the target user.</p>
+<p><strong>Example / clarification</strong></p>
+<p>Similarity is direct, not transitive. A similar user's low-rated movie is still
+a recommendation because the shared high rating establishes similarity while
+all watched movies are candidates.</p>
+<p><strong>Approach</strong></p>
+<p>Build watched and liked sets per user. Find users whose liked set intersects
+the target's, then union their unseen watched movies.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def recommend_movies(user, ratings):
+    watched = defaultdict(set)
+    liked = defaultdict(set)
+    for rating_user, movie, rating_text in ratings:
+        watched[rating_user].add(movie)
+        if float(rating_text) &gt; 3:
+            liked[rating_user].add(movie)
+
+    similar = {
+        other
+        for other in watched
+        if other != user and liked[user] &amp; liked[other]
+    }
+    answer = set()
+    for other in similar:
+        answer.update(watched[other] - watched[user])
+    return sorted(answer)
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Building indexes is <code>O(R)</code>. Similarity checks and unions are <code>O(R)</code> total in
+typical set accounting, plus <code>O(M log M)</code> to sort <code>M</code> recommendations. Space
+is <code>O(R)</code>.</p>
+<h2>Passage Tracker</h2>
+<h3><code>parse_log_entry</code></h3>
+<p><strong>Question</strong></p>
+<p>Parse a log line into typed fields and expand <code>E/W</code> directions.</p>
+<p><strong>Example / clarification</strong></p>
+<p><code>"44776.619 KTB918 310E MAINROAD"</code> becomes
+<code>(44776.619, "KTB918", 310, "EAST", "MAINROAD")</code>. Any direction other than
+<code>E</code> or <code>W</code> raises <code>ValueError</code>.</p>
+<p><strong>Approach</strong></p>
+<p>Split four whitespace-separated fields. The last character of the location
+field is its direction; the preceding characters form the integer location.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">def parse_log_entry(log_line: str):
+    timestamp_text, plate, location_direction, booth_type = log_line.split()
+    direction_code = location_direction[-1]
+    directions = {&quot;E&quot;: &quot;EAST&quot;, &quot;W&quot;: &quot;WEST&quot;}
+    if direction_code not in directions:
+        raise ValueError(f&quot;invalid direction: {direction_code}&quot;)
+    return (
+        float(timestamp_text),
+        plate,
+        int(location_direction[:-1]),
+        directions[direction_code],
+        booth_type,
+    )
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Time and returned storage are <code>O(L)</code> for line length <code>L</code>.</p>
+<h3>Shared journey grouping</h3>
+<p>Both remaining functions use this helper. It groups by plate, sorts each
+plate's records, pairs each <code>ENTRY</code> with its <code>EXIT</code>, then globally sorts
+journeys by entry time.</p>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def _complete_journeys(log_lines):
+    by_plate = defaultdict(list)
+    for line in log_lines:
+        entry = parse_log_entry(line)
+        by_plate[entry[1]].append(entry)
+
+    journeys = []
+    for entries in by_plate.values():
+        entries.sort(key=lambda entry: entry[0])
+        current = None
+        for entry in entries:
+            if entry[4] == &quot;ENTRY&quot;:
+                current = [entry]
+            elif current is not None:
+                current.append(entry)
+                if entry[4] == &quot;EXIT&quot;:
+                    journeys.append(current)
+                    current = None
+    journeys.sort(key=lambda journey: journey[0][0])
+    return journeys
+</code></pre>
+<h3><code>count_journeys</code></h3>
+<p><strong>Question</strong></p>
+<p>Count complete entry-to-exit journeys even when logs arrive unsorted.</p>
+<p><strong>Example / clarification</strong></p>
+<p>Two plates with one complete <code>ENTRY ... EXIT</code> sequence each produce <code>2</code>.
+Journeys for the same plate are guaranteed not to overlap.</p>
+<p><strong>Approach</strong></p>
+<p>Use <code>_complete_journeys</code> above and count the resulting groups.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">def count_journeys(log_lines: list[str]) -&gt; int:
+    return len(_complete_journeys(log_lines))
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Sorting dominates: time is <code>O(N log N)</code> and space is <code>O(N)</code>.</p>
+<h3><code>catch_speeders</code></h3>
+<p><strong>Question</strong></p>
+<p>Return one plate for each journey averaging at least 130 km/h over one 10 km
+segment or at least 120 km/h over two consecutive segments.</p>
+<p><strong>Example / clarification</strong></p>
+<p>Ten kilometers in 275 seconds is about 130.9 km/h and is flagged. Compare
+using multiplication, not rounded speeds. The same plate can appear for
+multiple speeding journeys.</p>
+<p><strong>Approach</strong></p>
+<p>Group journeys chronologically. Check adjacent records for the one-segment
+rule and triples moving consistently through two 10 km segments for the
+two-segment rule.</p>
+<p><strong>Complete Python solution</strong></p>
+<pre><code class="language-python">def catch_speeders(log_lines: list[str]) -&gt; list[str]:
+    def fast_enough(first, last, distance, speed):
+        elapsed = last[0] - first[0]
+        return (
+            elapsed &gt; 0
+            and abs(last[2] - first[2]) == distance
+            and distance * 3600 &gt;= speed * elapsed
+        )
+
+    answer = []
+    for journey in _complete_journeys(log_lines):
+        speeding = any(
+            fast_enough(journey[i], journey[i + 1], 10, 130)
+            for i in range(len(journey) - 1)
+        )
+        if not speeding:
+            speeding = any(
+                abs(journey[i + 1][2] - journey[i][2]) == 10
+                and abs(journey[i + 2][2] - journey[i + 1][2]) == 10
+                and journey[i + 1][2] - journey[i][2]
+                == journey[i + 2][2] - journey[i + 1][2]
+                and fast_enough(journey[i], journey[i + 2], 20, 120)
+                for i in range(len(journey) - 2)
+            )
+        if speeding:
+            answer.append(journey[0][1])
+    return answer
+</code></pre>
+<p><strong>Complexity</strong></p>
+<p>Grouping and sorting take <code>O(N log N)</code> time; scanning takes <code>O(N)</code>. Stored
+records require <code>O(N)</code> space.</p>
+<hr />
+<h1>Remaining Reference Solutions</h1>
+<h2><code>most_powerful_card</code></h2>
+<h3>Question</h3>
+<p>Given directed matchup pairs <code>[winner, loser]</code>, return the card that can beat
+the most distinct cards directly or transitively. A card does not beat itself,
+even through a cycle. Break ties lexicographically. Return <code>None</code> when there
+are no cards.</p>
+<h3>Example and clarification</h3>
+<p>If <code>giant</code> beats <code>wizard</code> and <code>wizard</code> beats <code>elf</code>, then <code>giant</code> beats both
+cards. Duplicate matchups do not add extra wins.</p>
+<h3>Approach</h3>
+<p>Build a directed adjacency set. From every card, run a graph traversal and
+count distinct reachable cards. Seed the answer by checking cards in sorted
+order, so replacing it only for a strictly larger count preserves the required
+lexicographic tie-break.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def most_powerful_card(matchups: list[list[str]]) -&gt; str | None:
+    &quot;&quot;&quot;Return the card that transitively beats the most distinct cards.
+
+    A matchup is ``[winner, loser]``. Break ties lexicographically and handle
+    cycles without counting a card as beating itself.
+    &quot;&quot;&quot;
+    if not matchups:
+        return None
+
+    cards = set()
+    defeated_by = defaultdict(set)
+    for winner, loser in matchups:
+        cards.add(winner)
+        cards.add(loser)
+        defeated_by[winner].add(loser)
+
+    best_card = None
+    best_count = -1
+    for card in sorted(cards):
+        reachable = set()
+        stack = list(defeated_by[card])
+        while stack:
+            defeated = stack.pop()
+            if defeated == card or defeated in reachable:
+                continue
+            reachable.add(defeated)
+            stack.extend(defeated_by[defeated])
+
+        if len(reachable) &gt; best_count:
+            best_card = card
+            best_count = len(reachable)
+
+    return best_card
+</code></pre>
+<h3>Complexity</h3>
+<p>With <code>V</code> cards and <code>E</code> matchups, time is <code>O(V(V + E))</code> and space is
+<code>O(V + E)</code>.</p>
+<h2><code>recommend_restaurant</code></h2>
+<h3>Question</h3>
+<p>Friendships are undirected. Recommend the restaurant liked by the largest
+number of the two diners' mutual friends. Exclude anything either diner
+already likes. Break support ties lexicographically and return <code>None</code> if no
+candidate remains.</p>
+<h3>Example and clarification</h3>
+<p>If both Robin and Marshall are friends with Ted and Lily, and both like
+<code>Restaurant_5</code>, that restaurant has support two. A repeated restaurant in one
+friend's data still counts as only one person's support.</p>
+<h3>Approach</h3>
+<p>Build each person's friend set and restaurant set. Intersect the two diners'
+friend sets, then count each mutual friend's unseen restaurant likes. Select
+by descending support and then ascending name.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def recommend_restaurant(
+    friendships: list[list[str]],
+    likes: list[list[str]],
+    person_a: str,
+    person_b: str,
+) -&gt; str | None:
+    &quot;&quot;&quot;Choose the restaurant liked by the most mutual friends.
+
+    Friendships are undirected. Exclude restaurants already liked by either
+    diner. Break support-count ties lexicographically and return ``None`` when
+    no candidate exists.
+    &quot;&quot;&quot;
+    friends = defaultdict(set)
+    for left, right in friendships:
+        friends[left].add(right)
+        friends[right].add(left)
+
+    restaurants_by_person = defaultdict(set)
+    for row in likes:
+        if row:
+            restaurants_by_person[row[0]].update(row[1:])
+
+    mutual_friends = friends[person_a] &amp; friends[person_b]
+    excluded = restaurants_by_person[person_a] | restaurants_by_person[person_b]
+
+    support = defaultdict(int)
+    for friend in mutual_friends:
+        for restaurant in restaurants_by_person[friend] - excluded:
+            support[restaurant] += 1
+
+    if not support:
+        return None
+    return min(support, key=lambda restaurant: (-support[restaurant], restaurant))
+</code></pre>
+<h3>Complexity</h3>
+<p>Let <code>F</code> be the friendship entries and <code>L</code> the total restaurant-like entries.
+Time is <code>O(F + L + C)</code>, where <code>C</code> is the number of candidate likes scanned.
+Space is <code>O(F + L)</code>.</p>
+<h2><code>user_access_ranges</code></h2>
+<h3>Question</h3>
+<p>For unsorted <code>[timestamp, user, resource]</code> records, return each user's earliest
+and latest timestamps as integers.</p>
+<h3>Example and clarification</h3>
+<p>Records at times <code>100</code> and <code>50</code> for <code>u1</code> produce <code>u1: (50, 100)</code>. A user with
+one record has the same minimum and maximum.</p>
+<h3>Approach</h3>
+<p>Scan once. Initialize a pair for a new user; otherwise update both endpoints.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def user_access_ranges(
+    logs: list[list[str]],
+) -&gt; dict[str, tuple[int, int]]:
+    &quot;&quot;&quot;Return each user's minimum and maximum timestamp from unsorted logs.&quot;&quot;&quot;
+    ranges = {}
+    for timestamp_text, user, _resource in logs:
+        timestamp = int(timestamp_text)
+        if user not in ranges:
+            ranges[user] = (timestamp, timestamp)
+        else:
+            earliest, latest = ranges[user]
+            ranges[user] = (min(earliest, timestamp), max(latest, timestamp))
+    return ranges
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>N</code> records, time is <code>O(N)</code> and space is <code>O(U)</code> for <code>U</code> users.</p>
+<h2><code>most_requested_resource</code></h2>
+<h3>Question</h3>
+<p>Find the resource with the most accesses inside any inclusive 300-second
+window. Break equal maximum counts lexicographically. Return <code>None</code> for no
+logs.</p>
+<h3>Example and clarification</h3>
+<p>Timestamps <code>100</code> and <code>400</code> can share a window because their difference is
+exactly 300. Timestamps <code>100</code> and <code>401</code> cannot.</p>
+<h3>Approach</h3>
+<p>Group timestamps by resource. Sort each group and use two pointers. Move the
+left pointer until the current interval spans at most 300 seconds. Track each
+resource's largest window, processing names in sorted order for tie-breaking.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def most_requested_resource(
+    logs: list[list[str]],
+) -&gt; tuple[str, int] | None:
+    &quot;&quot;&quot;Find the resource with most accesses in an inclusive 300-second window.
+
+    Break equal maximum counts lexicographically. Return ``None`` for no logs.
+    &quot;&quot;&quot;
+    if not logs:
+        return None
+
+    timestamps_by_resource = defaultdict(list)
+    for timestamp, _user, resource in logs:
+        timestamps_by_resource[resource].append(int(timestamp))
+
+    best_resource = None
+    best_count = 0
+    for resource in sorted(timestamps_by_resource):
+        timestamps = sorted(timestamps_by_resource[resource])
+        left = 0
+        resource_best = 0
+        for right, timestamp in enumerate(timestamps):
+            while timestamp - timestamps[left] &gt; 300:
+                left += 1
+            resource_best = max(resource_best, right - left + 1)
+
+        if resource_best &gt; best_count:
+            best_resource = resource
+            best_count = resource_best
+
+    return (best_resource, best_count)
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>N</code> logs, sorting costs <code>O(N log N)</code> time and grouping costs <code>O(N)</code> space.
+The sliding-window scans are linear after sorting.</p>
+<h2><code>build_transition_graph</code></h2>
+<h3>Question</h3>
+<p>Order every user's accesses by time. Count <code>START</code> to first resource, each
+consecutive resource transition, and final resource to <code>END</code>. Return outgoing
+probabilities. Include <code>START</code>; never use <code>END</code> as a source.</p>
+<h3>Example and clarification</h3>
+<p>A user visiting <code>A, A, B</code> contributes <code>START -&gt; A</code>, <code>A -&gt; A</code>, <code>A -&gt; B</code>, and
+<code>B -&gt; END</code>. Repeated resource visits are real self-transitions.</p>
+<h3>Approach</h3>
+<p>Group timestamped resources by user while retaining input order to break equal
+timestamps stably. Sort each user's sequence, count all edges, then divide
+each edge count by its source's total outgoing count.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import Counter, defaultdict
+
+
+def build_transition_graph(
+    logs: list[list[str]],
+) -&gt; dict[str, dict[str, float]]:
+    &quot;&quot;&quot;Build per-user resource transition probabilities.
+
+    Sort accesses by timestamp per user. Count START to first resource,
+    consecutive resource transitions, and last resource to END. Include START
+    but do not include END as a source key.
+    &quot;&quot;&quot;
+    accesses_by_user = defaultdict(list)
+    for order, (timestamp, user, resource) in enumerate(logs):
+        accesses_by_user[user].append((int(timestamp), order, resource))
+
+    transitions = defaultdict(Counter)
+    for accesses in accesses_by_user.values():
+        accesses.sort()
+        resources = [resource for _timestamp, _order, resource in accesses]
+        transitions[&quot;START&quot;][resources[0]] += 1
+        for source, destination in zip(resources, resources[1:]):
+            transitions[source][destination] += 1
+        transitions[resources[-1]][&quot;END&quot;] += 1
+
+    graph = {}
+    for source, destinations in transitions.items():
+        total = sum(destinations.values())
+        graph[source] = {
+            destination: count / total
+            for destination, count in destinations.items()
+        }
+    return graph
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>N</code> logs, time is <code>O(N log N)</code> in the worst case and space is <code>O(N + E)</code>,
+where <code>E</code> is the number of distinct transition pairs.</p>
+<h2><code>best_day_to_cross</code></h2>
+<h3>Question</h3>
+<p>Add each morning's snow to the base terrain. After two consecutive mornings
+with no snowfall anywhere, melt one accumulated unit per location on that and
+each later snowless day. A crossing is viable when every adjacent absolute
+height difference is at most one. Its cost is the sum of upward differences.
+Return the cheapest <code>[zero_based_day, cost]</code>, preferring the earliest day, or
+<code>[-1, -1]</code>.</p>
+<h3>Example and clarification</h3>
+<p>For bases <code>[0, 1]</code>, final heights <code>[1, 2]</code> are viable with one upward climb.
+Snow depth never goes below zero, so melting never lowers the base terrain.</p>
+<h3>Approach</h3>
+<p>Maintain snow depth and a global snowless-day streak. For each day, update the
+depth, apply melting when appropriate, test every adjacent pair, and compute
+the upward-only cost. Replace the answer only for a strictly smaller cost.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">def best_day_to_cross(
+    base_altitudes: list[int], snow_forecast: list[list[int]]
+) -&gt; list[int]:
+    &quot;&quot;&quot;Return ``[day, upward_climbs]`` for the cheapest viable crossing.
+
+    Each morning snowfall is added. After two consecutive snowless mornings,
+    one accumulated snow unit melts per snowless day, never below the base.
+    A day is viable when every adjacent height difference is at most one.
+    Upward positive differences are the climbing cost. Prefer the earliest day
+    on a cost tie; return ``[-1, -1]`` if no day works.
+    &quot;&quot;&quot;
+    snow_depth = [0] * len(base_altitudes)
+    snowless_streak = 0
+    best_day = -1
+    best_cost = None
+
+    for day, snowfall in enumerate(snow_forecast):
+        if len(snowfall) != len(base_altitudes):
+            raise ValueError(&quot;each forecast row must match the altitude count&quot;)
+
+        if any(amount != 0 for amount in snowfall):
+            snowless_streak = 0
+        else:
+            snowless_streak += 1
+
+        for index, amount in enumerate(snowfall):
+            snow_depth[index] += amount
+
+        if snowless_streak &gt;= 2:
+            snow_depth = [max(0, depth - 1) for depth in snow_depth]
+
+        heights = [
+            altitude + depth
+            for altitude, depth in zip(base_altitudes, snow_depth)
+        ]
+        if any(
+            abs(right - left) &gt; 1
+            for left, right in zip(heights, heights[1:])
+        ):
+            continue
+
+        cost = sum(
+            max(0, right - left)
+            for left, right in zip(heights, heights[1:])
+        )
+        if best_cost is None or cost &lt; best_cost:
+            best_day = day
+            best_cost = cost
+
+    return [best_day, best_cost] if best_cost is not None else [-1, -1]
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>D</code> days and <code>P</code> positions, time is <code>O(DP)</code> and space is <code>O(P)</code>.</p>
+<h2><code>minimum_sphere_distance</code></h2>
+<h3>Question</h3>
+<p>Uppercase letters are colored spheres and matching lowercase letters are
+holes. Sum the distance from every sphere to its nearest matching hole.
+Periods are empty positions.</p>
+<h3>Example and clarification</h3>
+<p>For <code>R...r.r</code>, the sphere at index zero chooses the hole at index four, so its
+distance is four. Different spheres are handled independently.</p>
+<h3>Approach</h3>
+<p>Record all hole indices by lowercase color and every sphere's index. For each
+sphere, find the smallest absolute difference to its matching hole indices.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def minimum_sphere_distance(room: str) -&gt; int:
+    &quot;&quot;&quot;Sum each uppercase sphere's distance to its nearest lowercase hole.
+
+    There is at most one sphere of each color and at least one matching hole.
+    Empty positions are periods; carrying distance is absolute index distance.
+    &quot;&quot;&quot;
+    holes = defaultdict(list)
+    spheres = []
+    for index, item in enumerate(room):
+        if item.islower():
+            holes[item].append(index)
+        elif item.isupper():
+            spheres.append((item.lower(), index))
+
+    return sum(
+        min(abs(sphere_index - hole_index) for hole_index in holes[color])
+        for color, sphere_index in spheres
+    )
+</code></pre>
+<h3>Complexity</h3>
+<p>For room length <code>N</code>, time is <code>O(N)</code> under the guarantee of at most one sphere
+per color: each matching hole list is scanned at most once. Space is <code>O(N)</code>.</p>
+<h2><code>filter_treasure_leading_rooms</code></h2>
+<h3>Question</h3>
+<p>Return every treasure room reached directly from at least two distinct other
+rooms. A self-loop does not count. Sort the result.</p>
+<h3>Example and clarification</h3>
+<p>Edges <code>A -&gt; T</code>, <code>B -&gt; T</code>, and <code>T -&gt; T</code> qualify treasure room <code>T</code> because its
+two qualifying sources are <code>A</code> and <code>B</code>. Duplicate <code>A -&gt; T</code> edges count once.</p>
+<h3>Approach</h3>
+<p>Build a reverse adjacency set while skipping self-loops. Keep treasure rooms
+whose reverse set has size at least two, then sort.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import defaultdict
+
+
+def filter_treasure_leading_rooms(
+    treasure_rooms: list[str], instructions: list[list[str]]
+) -&gt; list[str]:
+    &quot;&quot;&quot;Return rooms with two incoming rooms that immediately lead to treasure.
+
+    Self-loops do not count toward the two *other* incoming rooms. Sort output.
+    &quot;&quot;&quot;
+    incoming = defaultdict(set)
+    for source, destination in instructions:
+        if source != destination:
+            incoming[destination].add(source)
+
+    return sorted(
+        room for room in set(treasure_rooms) if len(incoming[room]) &gt;= 2
+    )
+</code></pre>
+<h3>Complexity</h3>
+<p>For <code>E</code> instructions and <code>T</code> treasure rooms, time is
+<code>O(E + T log T)</code> and space is <code>O(E)</code>.</p>
+<h2><code>minimum_instructions</code></h2>
+<h3>Question</h3>
+<p>Start in room zero and reach the final room in the fewest moves. Normally a
+room jumps forward by its instruction for free. For one dollar, that move may
+instead use exactly one less or one more. Distances must stay positive and
+land in bounds. Spending less than the budget is allowed.</p>
+<h3>Example and clarification</h3>
+<p>With <code>[2, 1, 9]</code> and one dollar, the free jump of two already reaches the final
+room in one move, so spending is unnecessary. More generally, each state must
+remember both the room and dollars spent because the remaining budget affects
+later choices.</p>
+<h3>Approach</h3>
+<p>Run breadth-first search over <code>(room, dollars_spent)</code>. Every legal transition
+is one move, so the first final-room transition has the minimum move count.
+Positive jumps mean no successful path can spend more than the number of
+non-final rooms, allowing the budget to be safely capped.</p>
+<h3>Complete Python solution</h3>
+<pre><code class="language-python">from collections import deque
+
+
+def minimum_instructions(instructions: list[int], money: int) -&gt; int | None:
+    &quot;&quot;&quot;Find the fewest moves from room zero to the final room.
+
+    At each room, either follow its positive jump for free or spend one dollar
+    to change that jump by exactly -1 or +1. Jumps must remain positive and
+    land within the room list. Spending less than the budget is allowed.
+    &quot;&quot;&quot;
+    if not instructions or money &lt; 0:
+        return None
+
+    final_room = len(instructions) - 1
+    if final_room == 0:
+        return 0
+
+    budget = min(money, final_room)
+    queue = deque([(0, 0, 0)])
+    visited = {(0, 0)}
+
+    while queue:
+        room, spent, moves = queue.popleft()
+        jump = instructions[room]
+        choices = [(jump, 0), (jump - 1, 1), (jump + 1, 1)]
+        for distance, cost in choices:
+            new_spent = spent + cost
+            destination = room + distance
+            if (
+                distance &lt;= 0
+                or destination &gt; final_room
+                or new_spent &gt; budget
+            ):
+                continue
+            if destination == final_room:
+                return moves + 1
+
+            state = (destination, new_spent)
+            if state not in visited:
+                visited.add(state)
+                queue.append((destination, new_spent, moves + 1))
+
+    return None
+</code></pre>
+<h3>Complexity</h3>
+<p>With <code>N</code> rooms and budget <code>M</code>, time and space are
+<code>O(N * min(M, N))</code>.</p>

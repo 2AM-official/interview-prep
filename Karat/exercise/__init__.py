@@ -1,0 +1,1 @@
+"""Individual Karat practice implementations."""
